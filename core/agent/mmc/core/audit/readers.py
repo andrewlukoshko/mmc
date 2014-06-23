@@ -90,10 +90,7 @@ class AuditReaderDB:
             # type_id: 2 => SYSTEMUSER
             object_user = self.session.query(Object).filter(
                 and_(
-                    or_(
-                        self.parent.object_table.c.type_id==1,
-                        self.parent.object_table.c.type_id==2,
-                    ),
+                    self.parent.object_table.c.type_id.in_([1,2]),
                     self.parent.object_table.c.uri.like("%"+user+"%"),
                 )).first()
             if object_user==None:
@@ -109,10 +106,10 @@ class AuditReaderDB:
         if action != 0:
             action = self.session.query(Event).filter(self.parent.event_table.c.name.like("%"+action+"%")).all()
             if action != []:
-                oraction = or_(self.parent.record_table.c.event_id==action[0].id)
+                inaction = []
                 for idact in action:
-                        oraction = or_(oraction,self.parent.record_table.c.event_id==idact.id)
-                ql = qlog.filter(oraction)
+                        inaction.append(idact.id)
+                ql = qlog.filter(self.parent.record_table.c.event_id.in_(inaction))
                 qlog = ql
             else:
                 return None
@@ -124,16 +121,16 @@ class AuditReaderDB:
         if object != 0:
             obj= self.session.query(Object).filter(self.parent.object_table.c.uri.like("%"+object+"%")).all()
             if obj != []:
-                orobj = or_(self.parent.object_log_table.c.object_id==obj[0].id)
+                inobj = []
                 for idobj in obj:
-                    orobj = or_(orobj,self.parent.object_log_table.c.object_id==idobj.id)
-                object_log = self.session.query(Object_Log).filter(orobj).all()
+                    inobj.append(idobj.id)
+                object_log = self.session.query(Object_Log).filter(self.parent.object_log_table.c.object_id.in_(inobj)).all()
                 if object_log:
-                    orobjlog = or_(self.parent.record_table.c.id==object_log[0].record_id)
+                    inobjlog = []
                     for idobjectlog in object_log:
-                        orobjlog = or_(orobjlog,self.parent.record_table.c.id==idobjectlog.record_id)
-                        ql = qlog.filter(orobjlog)
-                        #ql = qlog.filter(self.parent.object_table.c.uri.like("%"+object+"%")).join("obj_log")
+                        inobjlog.append(idobjectlog.record_id)
+                    ql = qlog.filter(self.parent.record_table.c.id.in_(inobjlog))
+                    #ql = qlog.filter(self.parent.object_table.c.uri.like("%"+object+"%")).join("obj_log")
                     qlog = ql
                 else:
                     self.session.close()
